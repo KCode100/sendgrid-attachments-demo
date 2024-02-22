@@ -1,46 +1,58 @@
-import sendgrid from '@sendgrid/mail'
+'use client'
+
+import { submitForm } from "./actions"
 
 export default function Home() {
 
-  async function submitForm(formData: FormData) {
-    'use server'
+  function handleInput(formData: FormData) {
+    const emailRecipient = formData.get('emailRecipient') as string
+    const message = formData.get('message') as string
+    const fileUpload = (formData.get('fileUpload') as File)
+    console.log(fileUpload)
 
-    sendgrid.setApiKey(`${process.env.SENDGRID_API_KEY}`)
-
-    const emailRecipient = formData.get('emailRecipient')
-    const message = formData.get('message')
-  
-    const msg = {
-      to: emailRecipient as string, // Change to your recipient
-      from: 'kivi.webdev@gmail.com', // Change to your verified sender
-      subject: 'Sending with SendGrid is Fun',
-      text: 'and easy to do anywhere, even with Node.js',
-      html: message as string,
-    }
-
-    try {
-      const res = await sendgrid.send(msg)
-      if (res[0].statusCode >= 200 && res[0].statusCode < 300) {
-        console.log({ status: 200 });
+    const fileReader = new FileReader();
+    fileReader.onload = function() {
+      const result = fileReader.result;
+      if (typeof result === 'string') { // Check if result is a string
+        const base64String = result.split(',')[1]; // Use split method safely
+        const constructedEmail = {
+          to: emailRecipient,
+          from: 'kivi.webdev@gmail.com',
+          subject: 'Sending attachments with SendGrid',
+          text: message,
+          attachments: [
+            {
+              content: base64String,
+              filename: fileUpload.name,
+              type: fileUpload.type,
+              disposition: "attachment"
+            }
+          ]
+        }
+        submitForm(constructedEmail);
       } else {
-        throw new Error()
+        // Handle the case when fileReader.result is not a string
+        console.error('Error reading file');
       }
-    } catch (error) {
-      console.log({ error: error })
-    }
+    };
+    fileReader.readAsDataURL(fileUpload); // Read the file as data URL
   }
 
   return (
     <main>
-      <form action={ submitForm }>
+      <form action={ handleInput }>
         <label htmlFor="emailRecipient">Email recipient</label><br />
         <input type="text" name="emailRecipient" id="emailRecipient" />
         <div>
           <label htmlFor="message">Message</label><br />
           <textarea name="message" id="message" cols={ 30 } rows={ 10 }></textarea>
         </div>
+        <div>
+          <label htmlFor="file-upload">Upload a file</label>
+          <input id="file-upload" name="fileUpload" type="file" multiple />
+        </div><br /><br />
         <button type="submit">Submit</button>
       </form>
     </main>
-  );
+  )
 }

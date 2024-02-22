@@ -2,17 +2,19 @@
 
 import sendgrid from '@sendgrid/mail'
 
+export type Attachments = {
+  content: string,
+  filename: string,
+  type: string,
+  disposition: string
+}
+
 type ConstructedEmail = {
   to: string
   from: string
   subject: string
   text: string
-  attachments?: {
-    content: string,
-    filename: string,
-    type: string,
-    disposition: string
-  }[]
+  attachments?: Attachments[]
 }
 
 export async function submitForm(constructedEmail: ConstructedEmail) {

@@ -1,43 +1,54 @@
 'use client'
 
-import { submitForm } from "./actions"
+import { Attachments, submitForm } from "./actions"
 
 export default function Home() {
 
   function handleInput(formData: FormData) {
-    const emailRecipient = formData.get('emailRecipient') as string
-    const message = formData.get('message') as string
-    const fileUpload = (formData.get('fileUpload') as File)
-    console.log(fileUpload)
-
-    const fileReader = new FileReader();
-    fileReader.onload = function() {
-      const result = fileReader.result;
-      if (typeof result === 'string') { // Check if result is a string
-        const base64String = result.split(',')[1]; // Use split method safely
+    const emailRecipient = formData.get('emailRecipient') as string;
+    const message = formData.get('message') as string;
+    const fileUploads = formData.getAll('fileUpload') as File[]; // Get all files as an array
+  
+    const attachments: Attachments[] = []; // Array to store all attachments
+  
+    const filePromises = fileUploads.map(fileUpload => {
+      return new Promise((resolve, reject) => {
+        const fileReader = new FileReader()
+        fileReader.onload = function () {
+          const result = fileReader.result
+          if (typeof result === 'string') {
+            const base64String = result.split(',')[1]
+            attachments.push({
+              content: base64String,
+              filename: fileUpload.name,
+              type: fileUpload.type,
+              disposition: "attachment"
+            })
+            resolve(null)
+          } else {
+            reject('Error reading file')
+          }
+        };
+        fileReader.readAsDataURL(fileUpload); // Read the file as data URL
+      })
+    })
+  
+    Promise.all(filePromises)
+      .then(() => {
         const constructedEmail = {
           to: emailRecipient,
           from: 'kivi.webdev@gmail.com',
           subject: 'Sending attachments with SendGrid',
           text: message,
-          attachments: [
-            {
-              content: base64String,
-              filename: fileUpload.name,
-              type: fileUpload.type,
-              disposition: "attachment"
-            }
-          ]
-        }
-        submitForm(constructedEmail);
-      } else {
-        // Handle the case when fileReader.result is not a string
-        console.error('Error reading file');
-      }
-    };
-    fileReader.readAsDataURL(fileUpload); // Read the file as data URL
+          attachments: attachments // Attachments array
+        };
+        submitForm(constructedEmail)
+      })
+      .catch(error => {
+        console.error(error)
+      })
   }
-
+  
   return (
     <main>
       <form action={ handleInput }>
